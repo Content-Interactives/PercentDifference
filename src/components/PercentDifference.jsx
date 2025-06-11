@@ -1,327 +1,447 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { RefreshCw } from 'lucide-react';
 
 const PercentDifference = () => {
-  const generateInitialProblem = () => {
-    const n1 = Math.floor(Math.random() * 91) + 10;
-    const n2 = Math.floor(Math.random() * 91) + 10;
-    return { value1: n1.toString(), value2: n2.toString() };
-  };
-
-  const initial = generateInitialProblem();
-  const [value1, setValue1] = useState(initial.value1);
-  const [value2, setValue2] = useState(initial.value2);
+  // State management
+  const [values, setValues] = useState({ value1: '', value2: '' });
   const [showSteps, setShowSteps] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState({
-    step1: false,
-    step2: false,
-    step3: false
-  });
-  const [userInput1, setUserInput1] = useState('');
-  const [userInput2, setUserInput2] = useState('');
-  const [userInput3, setUserInput3] = useState('');
-  const [hasError, setHasError] = useState({
-    step1: false,
-    step2: false,
-    step3: false
-  });
-  const [stepAnswers, setStepAnswers] = useState({
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [userInputs, setUserInputs] = useState({
     step1: '',
     step2: '',
     step3: ''
   });
+  const [inputStatus, setInputStatus] = useState({
+    step1: null,
+    step2: null,
+    step3: null
+  });
+  const [stepCompleted, setStepCompleted] = useState({
+    step1: false,
+    step2: false,
+    step3: false
+  });
+  const [stepSkipped, setStepSkipped] = useState({
+    step1: false,
+    step2: false,
+    step3: false
+  });
+  const [steps, setSteps] = useState([]);
+  const [showNavigationButtons, setShowNavigationButtons] = useState(false);
+  const [navigationDirection, setNavigationDirection] = useState(null);
+  const [inputError, setInputError] = useState('');
 
+  // Generate random numbers
+  const generateRandomNumbers = () => {
+    const n1 = Math.floor(Math.random() * 91) + 10;
+    const n2 = Math.floor(Math.random() * 91) + 10;
+    setValues({ value1: n1.toString(), value2: n2.toString() });
+    setInputError('');
+  };
+
+  // Show navigation buttons when all steps are completed
+  useEffect(() => {
+    if (stepCompleted.step1 && stepCompleted.step2 && stepCompleted.step3) {
+      setShowNavigationButtons(true);
+    }
+  }, [stepCompleted]);
+
+  // Handle input changes
+  const handleValueChange = (e, field) => {
+    const value = e.target.value;
+    setValues(prev => ({ ...prev, [field]: value }));
+    setInputError('');
+  };
+
+  // Validate inputs before calculating
+  const validateInputs = () => {
+    const { value1, value2 } = values;
+    if (!value1 || !value2) {
+      return false;
+    }
+    const num1 = parseFloat(value1);
+    const num2 = parseFloat(value2);
+    if (isNaN(num1) || isNaN(num2)) {
+      return false;
+    }
+    if (num1 === 0 && num2 === 0) {
+      setInputError('Both numbers cannot be zero');
+      return false;
+    }
+    return true;
+  };
+
+  // Calculate percent difference
   const calculatePercentDifference = (a, b) => {
     return Math.abs((b - a) / ((a + b) / 2)) * 100;
   };
 
-  const generateNewProblem = () => {
-    const { value1: newValue1, value2: newValue2 } = generateInitialProblem();
-    setValue1(newValue1);
-    setValue2(newValue2);
-    setUserInput1('');
-    setUserInput2('');
-    setUserInput3('');
-    setCurrentStep(1);
-    setCompletedSteps({
-      step1: false,
-      step2: false,
-      step3: false
-    });
-    setHasError({
-      step1: false,
-      step2: false,
-      step3: false
-    });
-    setStepAnswers({
-      step1: '',
-      step2: '',
-      step3: ''
-    });
-    setShowSteps(false);
+  // Calculate steps
+  const calculateSteps = () => {
+    if (!validateInputs()) return;
+
+    const { value1, value2 } = values;
+    const num1 = parseFloat(value1);
+    const num2 = parseFloat(value2);
+    const absDiff = Math.abs(num2 - num1);
+    const avg = (num1 + num2) / 2;
+    const percentDiff = calculatePercentDifference(num1, num2);
+
+    const newSteps = [
+      {
+        main: 'Step 1: Find the absolute difference',
+        formula: `|${num2} - ${num1}|`,
+        answer: absDiff.toString()
+      },
+      {
+        main: 'Step 2: Calculate the average',
+        formula: `(${num1} + ${num2}) ÷ 2`,
+        answer: avg.toFixed(1)
+      },
+      {
+        main: 'Step 3: Calculate final percentage',
+        formula: `${absDiff} ÷ ${avg.toFixed(1)} × 100`,
+        answer: percentDiff.toFixed(1)
+      }
+    ];
+
+    setSteps(newSteps);
+    setShowSteps(true);
+    setUserInputs({ step1: '', step2: '', step3: '' });
+    setCurrentStepIndex(0);
+    setStepCompleted({ step1: false, step2: false, step3: false });
+    setInputStatus({ step1: null, step2: null, step3: null });
+    setShowNavigationButtons(false);
   };
 
-  const showStepAnswer = (step) => {
-    const answers = {
-      1: Math.abs(parseFloat(value2) - parseFloat(value1)).toString(),
-      2: ((parseFloat(value1) + parseFloat(value2)) / 2).toFixed(1),
-      3: calculatePercentDifference(parseFloat(value1), parseFloat(value2)).toFixed(1)
-    };
-    
-    setStepAnswers(prev => ({ ...prev, [`step${step}`]: answers[step] }));
-    setCompletedSteps(prev => ({ ...prev, [`step${step}`]: true }));
-    if (step < 3) setCurrentStep(step + 1);
+  // Handle step input change
+  const handleStepInputChange = (e, step) => {
+    setUserInputs({ ...userInputs, [step]: e.target.value });
+    setInputStatus({ ...inputStatus, [step]: null });
   };
 
-  const checkStepAnswer = (step) => {
-    const answers = {
-      1: Math.abs(parseFloat(value2) - parseFloat(value1)).toString(),
-      2: ((parseFloat(value1) + parseFloat(value2)) / 2).toFixed(1),
-      3: calculatePercentDifference(parseFloat(value1), parseFloat(value2)).toFixed(1)
-    };
+  // Skip step
+  const skipStep = (step) => {
+    setUserInputs({ ...userInputs, [step]: steps[currentStepIndex].answer });
+    setInputStatus({ ...inputStatus, [step]: 'correct' });
+    setStepCompleted(prev => ({ ...prev, [step]: true }));
+    setStepSkipped(prev => ({ ...prev, [step]: true }));
+  };
 
-    const userInputs = {
-      1: userInput1,
-      2: userInput2,
-      3: userInput3
-    };
+  // Check step answer
+  const checkStep = (step) => {
+    const correctAnswer = steps[currentStepIndex].answer;
+    const userAnswer = userInputs[step];
+    const isCorrect = Math.abs(parseFloat(userAnswer) - parseFloat(correctAnswer)) < 0.1;
 
-    const isCorrect = Math.abs(parseFloat(userInputs[step]) - parseFloat(answers[step])) < 0.1;
+    setInputStatus({ ...inputStatus, [step]: isCorrect ? 'correct' : 'incorrect' });
     
     if (isCorrect) {
-      setStepAnswers(prev => ({ ...prev, [`step${step}`]: answers[step] }));
-      setCompletedSteps(prev => ({ ...prev, [`step${step}`]: true }));
-      if (step < 3) setCurrentStep(step + 1);
+      setStepCompleted(prev => ({ ...prev, [step]: true }));
+      setStepSkipped(prev => ({ ...prev, [step]: false }));
     }
+  };
+
+  // Handle navigation
+  const handleNavigateHistory = (direction) => {
+    setNavigationDirection(direction);
     
-    setHasError(prev => ({ ...prev, [`step${step}`]: !isCorrect }));
-    return isCorrect;
+    if (direction === 'back' && currentStepIndex > 0) {
+      setCurrentStepIndex(prev => prev - 1);
+    } else if (direction === 'forward' && currentStepIndex < steps.length - 1) {
+      setCurrentStepIndex(prev => prev + 1);
+    }
+
+    setTimeout(() => {
+      setNavigationDirection(null);
+    }, 300);
   };
 
   return (
-    <div className="bg-gray-100 p-8 w-full max-w-4xl mx-auto">
-      <Card className="w-full shadow-md bg-white">
-        <div className="bg-sky-50 p-6 rounded-t-lg">
-          <h1 className="text-sky-900 text-2xl font-bold">Understanding Percent Difference</h1>
-          <p className="text-sky-800">Learn how to calculate the difference between two numbers as a percentage!</p>
-        </div>
+    <>
+      <style>{`
+        @property --r {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
 
-        <CardContent className="space-y-6 pt-6">
-          <div className="bg-blue-50 p-4 rounded border border-blue-200">
-            <h2 className="text-blue-900 font-bold mb-2">What is Percent Difference?</h2>
-            <p className="text-blue-600">
-              Percent difference measures the relative change between two numbers as a percentage of their average. The formula to calculate percentage difference is:
-            </p>
-            <div className="flex justify-center items-center mt-4 mb-2 w-full">
-              <div className="inline-flex items-center justify-center text-xl">
-                <div className="text-center px-2">
-                  Percentage difference
-                </div>
-                <div className="text-center px-2">=</div>
-                <div>
-                  <div className="inline-flex flex-col items-center px-1">
-                    <div className="border-b border-black whitespace-nowrap px-1 pb-1">| x - y |</div>
-                    <div className="inline-flex flex-col items-center text-lg">
-                      <div className="border-b border-black px-1">x + y</div>
-                      <div className="text-base px-1">2</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-xl px-2">×</span>
-                  <div className="px-1">
-                    100
-                  </div>
-                </div>
+        .glow-button { 
+          min-width: auto; 
+          height: auto; 
+          position: relative; 
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1;
+          transition: all .3s ease;
+          padding: 7px;
+        }
+
+        .glow-button::before {
+          content: "";
+          display: block;
+          position: absolute;
+          background: #fff;
+          inset: 2px;
+          border-radius: 4px;
+          z-index: -2;
+        }
+
+        .simple-glow {
+          background: conic-gradient(
+            from var(--r),
+            transparent 0%,
+            rgb(0, 255, 132) 2%,
+            rgb(0, 214, 111) 8%,
+            rgb(0, 174, 90) 12%,
+            rgb(0, 133, 69) 14%,
+            transparent 15%
+          );
+          animation: rotating 3s linear infinite;
+          transition: animation 0.3s ease;
+        }
+
+        .simple-glow.stopped {
+          animation: none;
+          background: none;
+        }
+
+        @keyframes rotating {
+          0% {
+            --r: 0deg;
+          }
+          100% {
+            --r: 360deg;
+          }
+        }
+
+        .nav-button {
+          opacity: 1;
+          cursor: default !important;
+          position: relative;
+          z-index: 2;
+          outline: 2px white solid;
+        }
+
+        .nav-button-orbit {
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          background: conic-gradient(
+            from var(--r),
+            transparent 0%,
+            rgb(0, 255, 132) 2%,
+            rgb(0, 214, 111) 8%,
+            rgb(0, 174, 90) 12%,
+            rgb(0, 133, 69) 14%,
+            transparent 15%
+          );
+          animation: rotating 3s linear infinite;
+          z-index: 0;
+        }
+
+        .nav-button-orbit::before {
+          content: "";
+          position: absolute;
+          inset: 2px;
+          background: transparent;
+          border-radius: 50%;
+          z-index: 0;
+        }
+
+        .nav-button svg {
+          position: relative;
+          z-index: 1;
+        }
+      `}</style>
+      <div className="w-[500px] h-auto mx-auto shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)] bg-white rounded-lg overflow-hidden">
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-[#5750E3] text-sm font-medium select-none">Percent Difference Calculator</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={values.value1}
+                  onChange={(e) => handleValueChange(e, 'value1')}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#5750E3]"
+                  placeholder="First number"
+                />
               </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-            <h2 className="text-xl font-bold mb-4">Examples</h2>
-            <Card className="border border-gray-200">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-lg mt-4">Let's find the percent difference between 20 (x) and 30 (y):</p>
-                    <div className="space-y-6 mt-6">
-                      <div>
-                        <p className="font-medium">Step 1: Find the absolute value of x minus y</p>
-                        <div className="p-4 my-2">|30 - 20| = 10</div>
-                      </div>
-                      <div>
-                        <p className="font-medium">Step 2: Calculate the average of x and y</p>
-                        <div className="p-4 my-2">(20 + 30) ÷ 2 = 25</div>
-                      </div>
-                      <div>
-                        <p className="font-medium">Step 3: Divide and multiply by 100</p>
-                        <div className="p-4 mb-1">10 ÷ 25 × 100 = 40%</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-purple-900 font-bold">Practice Time!</h2>
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={values.value2}
+                  onChange={(e) => handleValueChange(e, 'value2')}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#5750E3]"
+                  placeholder="Second number"
+                />
+              </div>
               <Button 
-                onClick={generateNewProblem}
-                className="bg-sky-500 hover:bg-sky-600 text-white px-4 flex items-center gap-2"
+                onClick={generateRandomNumbers}
+                className="bg-[#008545] hover:bg-[#00703d] text-white px-4 h-[42px]"
               >
-                <RefreshCw className="w-4 h-4" />
-                New Problem
+                Random
               </Button>
             </div>
 
-            <div className="text-center text-2xl mb-4 space-y-2">
-              <div className="font-mono">
-                Find the percent difference between {parseInt(value1).toLocaleString()} and {parseInt(value2).toLocaleString()}
-              </div>
+            {inputError && (
+              <p className="text-sm text-red-500">{inputError}</p>
+            )}
+
+            <div className={`glow-button ${!showSteps ? 'simple-glow' : 'simple-glow stopped'}`}>
+              <button 
+                onClick={calculateSteps}
+                className="w-full bg-[#008545] hover:bg-[#00703d] text-white text-sm py-2 rounded"
+              >
+                Calculate Percent Difference
+              </button>
             </div>
+          </div>
+        </div>
 
-            <Button 
-              onClick={() => setShowSteps(true)}
-              className="w-full bg-blue-950 hover:bg-blue-900 text-white py-3"
-            >
-              Solve Step by Step
-            </Button>
-
-            {showSteps && (
-              <div className="bg-purple-50 p-4 rounded-lg mt-4">
-                <p className="mb-4">1. Find the absolute difference:</p>
-                {completedSteps.step1 ? (
-                  <div className="text-green-600 font-bold mb-6">
-                    |{value2} - {value1}| = {stepAnswers.step1}
-                  </div>
-                ) : (
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-center gap-4">
-                      <Input 
+        {showSteps && (
+          <div className="p-4 bg-gray-50">
+            <div className="space-y-2">
+              <h3 className="text-[#5750E3] text-sm font-medium mb-2">
+                Steps to calculate the percent difference:
+              </h3>
+              <div className="space-y-4">
+                <div className="w-full p-2 mb-1 bg-white border border-[#5750E3]/30 rounded-md">
+                  <p className="text-sm">{steps[currentStepIndex].main}</p>
+                  <pre className="text-sm whitespace-pre-wrap mt-1">{steps[currentStepIndex].formula}</pre>
+                  {stepCompleted[`step${currentStepIndex + 1}`] && (
+                    <p className="text-sm text-[#008545] font-medium mt-1">
+                      = {steps[currentStepIndex].answer}
+                    </p>
+                  )}
+                  {!stepCompleted[`step${currentStepIndex + 1}`] && (
+                    <div className="flex items-center space-x-1 mt-2">
+                      <input
                         type="number"
-                        value={userInput1}
-                        onChange={(e) => {
-                          setUserInput1(e.target.value);
-                          setHasError(prev => ({ ...prev, step1: false }));
-                        }}
-                        placeholder="Enter absolute difference"
-                        className={`flex-1 ${hasError.step1 ? 'border-red-500' : 'border-blue-300'}`}
+                        value={userInputs[`step${currentStepIndex + 1}`]}
+                        onChange={(e) => handleStepInputChange(e, `step${currentStepIndex + 1}`)}
+                        placeholder="Enter Answer"
+                        className={`w-full text-sm p-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-[#5750E3] ${
+                          inputStatus[`step${currentStepIndex + 1}`] === 'correct'
+                            ? 'border-green-500'
+                            : inputStatus[`step${currentStepIndex + 1}`] === 'incorrect'
+                            ? 'border-yellow-500'
+                            : 'border-gray-300'
+                        }`}
                       />
-                      <div className="flex gap-4">
-                        <Button
-                          onClick={() => checkStepAnswer(1)}
-                          className="bg-blue-400 hover:bg-blue-500"
-                        >
-                          Check
-                        </Button>
-                        <Button
-                          onClick={() => showStepAnswer(1)}
-                          className="bg-gray-400 hover:bg-gray-500 text-white"
-                        >
-                          Skip
-                        </Button>
+                      <div className="glow-button simple-glow">
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => checkStep(`step${currentStepIndex + 1}`)} 
+                            className="bg-[#008545] hover:bg-[#00703d] text-white text-sm px-4 py-2 rounded-md min-w-[80px]"
+                          >
+                            Check
+                          </button>
+                          <button 
+                            onClick={() => skipStep(`step${currentStepIndex + 1}`)} 
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm px-4 py-2 rounded-md min-w-[80px]"
+                          >
+                            Skip
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  )}
+                  {stepCompleted[`step${currentStepIndex + 1}`] && !showNavigationButtons && (
+                    <div className="flex items-center gap-4 mt-2 justify-end">
+                      {!stepSkipped[`step${currentStepIndex + 1}`] && (
+                        <span className="text-green-600 font-bold select-none">Great Job!</span>
+                      )}
+                      {currentStepIndex < steps.length - 1 && (
+                        <div className="glow-button simple-glow">
+                          <button 
+                            onClick={() => {
+                              if (currentStepIndex < steps.length - 1) {
+                                setCurrentStepIndex(prev => prev + 1);
+                              }
+                            }}
+                            className="bg-[#008545] hover:bg-[#00703d] text-white text-sm px-4 py-2 rounded-md min-w-[80px]"
+                          >
+                            Continue
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <div
+                    className="nav-orbit-wrapper"
+                    style={{
+                      position: 'relative',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      visibility: showNavigationButtons && currentStepIndex > 0 ? 'visible' : 'hidden',
+                      opacity: showNavigationButtons && currentStepIndex > 0 ? 1 : 0,
+                      pointerEvents: showNavigationButtons && currentStepIndex > 0 ? 'auto' : 'none',
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <div className="nav-button-orbit"></div>
+                    <div style={{ position: 'absolute', width: '32px', height: '32px', borderRadius: '50%', background: 'white', zIndex: 1 }}></div>
+                    <button
+                      onClick={() => handleNavigateHistory('back')}
+                      className={`nav-button w-8 h-8 flex items-center justify-center rounded-full bg-[#008545]/20 text-[#008545] hover:bg-[#008545]/30 relative z-50`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 18l-6-6 6-6"/>
+                      </svg>
+                    </button>
                   </div>
-                )}
-
-                {currentStep >= 2 && (
-                  <>
-                    <p className="mb-4">2. Calculate the average:</p>
-                    {completedSteps.step2 ? (
-                      <div className="text-green-600 font-bold mb-6">
-                        ({value1} + {value2}) ÷ 2 = {stepAnswers.step2}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-4 mb-6">
-                        <Input 
-                          type="number"
-                          value={userInput2}
-                          onChange={(e) => {
-                            setUserInput2(e.target.value);
-                            setHasError(prev => ({ ...prev, step2: false }));
-                          }}
-                          placeholder="Enter average"
-                          step="0.1"
-                          className={`flex-1 ${hasError.step2 ? 'border-red-500' : 'border-blue-300'}`}
-                        />
-                        <div className="flex gap-4">
-                          <Button
-                            onClick={() => checkStepAnswer(2)}
-                            className="bg-blue-400 hover:bg-blue-500"
-                          >
-                            Check
-                          </Button>
-                          <Button
-                            onClick={() => showStepAnswer(2)}
-                            className="bg-gray-400 hover:bg-gray-500 text-white"
-                          >
-                            Skip
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {currentStep >= 3 && (
-                  <>
-                    <p className="mb-4">3. Calculate final percentage (round to nearest 0.1%):</p>
-                    {completedSteps.step3 ? (
-                      <>
-                        <div className="text-green-600 font-bold mb-6">
-                          {stepAnswers.step1} ÷ {stepAnswers.step2} × 100 = {stepAnswers.step3}%
-                        </div>
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-                          <h3 className="text-green-800 text-xl font-bold">Great Work!</h3>
-                          <p className="text-green-700">
-                            You've successfully calculated the percent difference!
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-4 mb-6">
-                        <Input 
-                          type="number"
-                          value={userInput3}
-                          onChange={(e) => {
-                            setUserInput3(e.target.value);
-                            setHasError(prev => ({ ...prev, step3: false }));
-                          }}
-                          placeholder="Enter final percentage"
-                          step="0.1"
-                          className={`flex-1 ${hasError.step3 ? 'border-red-500' : 'border-blue-300'}`}
-                        />
-                        <div className="flex gap-4">
-                          <Button
-                            onClick={() => checkStepAnswer(3)}
-                            className="bg-blue-400 hover:bg-blue-500"
-                          >
-                            Check
-                          </Button>
-                          <Button
-                            onClick={() => showStepAnswer(3)}
-                            className="bg-gray-400 hover:bg-gray-500 text-white"
-                          >
-                            Skip
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                  <span className="text-sm text-gray-500 min-w-[100px] text-center">
+                    Step {currentStepIndex + 1} of {steps.length}
+                  </span>
+                  <div
+                    className="nav-orbit-wrapper"
+                    style={{
+                      position: 'relative',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      visibility: showNavigationButtons && currentStepIndex < steps.length - 1 ? 'visible' : 'hidden',
+                      opacity: showNavigationButtons && currentStepIndex < steps.length - 1 ? 1 : 0,
+                      pointerEvents: showNavigationButtons && currentStepIndex < steps.length - 1 ? 'auto' : 'none',
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <div className="nav-button-orbit"></div>
+                    <div style={{ position: 'absolute', width: '32px', height: '32px', borderRadius: '50%', background: 'white', zIndex: 1 }}></div>
+                    <button
+                      onClick={() => handleNavigateHistory('forward')}
+                      className={`nav-button w-8 h-8 flex items-center justify-center rounded-full bg-[#008545]/20 text-[#008545] hover:bg-[#008545]/30 relative z-50`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18l6-6-6-6"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
